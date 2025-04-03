@@ -227,13 +227,16 @@ suppressWarnings(dt2$Length <- ifelse(!is.na(as.numeric("NA")) & (trimws(as.char
 
 library(dplyr)
 library(lubridate)
+library(egnyter)
+
+if (!dir.exists("data")) dir.create("data")
 
 dt1 |> 
   mutate(Year = year(Date),
          SourceStation = paste(Source, Station),
          LatRound = round(Latitude, 1),
          LonRound = round(Longitude, 1)) |> 
-  saveRDS("dt1.rds")
+  saveRDS(file.path("data", "dt1.rds"))
 
 sources = levels(dt1$Source)
 
@@ -242,8 +245,19 @@ for (i in sources){
   tmp = filter(dt1, Source == i)
   dt2 |> 
     filter(SampleID %in% unique(tmp$SampleID)) |> 
-    saveRDS(paste0("dt2-", x, ".rds"))
+    saveRDS(file.path("data", paste0("dt2-", x, ".rds")))
 }
 
+remote_path = file.path("Shared", "Admin", "Practices", "Fish and Aquatic Science",
+                        "Data Science", "EDI-SFE-Data")
 
+for (i in sources[8:10]){
+  x = gsub(" ", "", i)
+  fl = paste0("dt2-", x, ".rds")
+  Sys.sleep(0.4)
+  upload_file(file.path("data", fl),
+              file.path(remote_path, fl), 
+              domain = "https://oneesa.egnyte.com",
+              token = Sys.getenv("EgnyteKey"))
+}
 
