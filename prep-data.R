@@ -231,6 +231,9 @@ library(egnyter)
 
 if (!dir.exists("data")) dir.create("data")
 
+remote_path = file.path("Shared", "Admin", "Practices", "Fish and Aquatic Science",
+                        "Data Science", "EDI-SFE-Data")
+
 dt1 |> 
   mutate(Year = year(Date),
          SourceStation = paste(Source, Station),
@@ -241,22 +244,16 @@ dt1 |>
 sources = levels(dt1$Source)
 
 for (i in sources){
-  x = gsub(" ", "", i)
   tmp = filter(dt1, Source == i)
   dt2 |> 
     filter(SampleID %in% unique(tmp$SampleID)) |> 
-    saveRDS(file.path("data", paste0("dt2-", x, ".rds")))
+    saveRDS(file.path("data", paste0("dt2-", gsub(" ", "", i), ".rds")))
 }
 
-remote_path = file.path("Shared", "Admin", "Practices", "Fish and Aquatic Science",
-                        "Data Science", "EDI-SFE-Data")
-
-for (i in sources[8:10]){
-  x = gsub(" ", "", i)
-  fl = paste0("dt2-", x, ".rds")
+for (i in list.files("data")){
   Sys.sleep(0.4)
-  upload_file(file.path("data", fl),
-              file.path(remote_path, fl), 
+  upload_file(file.path("data", i),
+              file.path(remote_path, i), 
               domain = "https://oneesa.egnyte.com",
               token = Sys.getenv("EgnyteKey"))
 }
