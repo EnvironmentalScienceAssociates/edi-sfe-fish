@@ -101,7 +101,8 @@ function(input, output, session) {
     out <<- shape
   })
   
-  rv <- reactiveValues(dt2 = dt2)
+  # initialize with empty list
+  rv <- reactiveValues(dt2 = setNames(vector("list", length(sources)), sources))
 
   observeEvent(input$get_species,{
     rv$dt2 = lapply(input$sources, function(x){
