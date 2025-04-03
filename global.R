@@ -10,10 +10,32 @@ library(leaflet.extras)
 # library(plotly)
 library(sf)
 library(lubridate)
+library(egnyter)
 
-dt1 = readRDS("dt1.rds")
-dt2 = setNames(vector("list", length(sources)), sources)
+if (!dir.exists("data")) dir.create("data")
 
+sources = c("20mm", "Bay Study", "DJFMP", "EDSM", "FMWT", "Salvage", 
+            "SKT", "SLS", "STN", "Suisun")
+source_colors = c("#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3", "#fdb462",
+                  "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd")
+pal = colorFactor(source_colors, sources)
+
+data_files = c("dt1.rds", gsub(" ", "", paste0("dt2-", sources, ".rds")))
+
+remote_path = file.path("Shared", "Admin", "Practices", "Fish and Aquatic Science",
+                        "Data Science", "EDI-SFE-Data")
+
+for (i in data_files){
+  if (!file.exists(file.path("data", i))){
+    Sys.sleep(0.4)
+    download_file(file.path(remote_path, i),
+                  file.path("data", i),
+                  domain = "https://oneesa.egnyte.com",
+                  token = Sys.getenv("EgnyteKey"))
+  }
+}
+
+dt1 = readRDS(file.path("data", "dt1.rds"))
 yr_min = min(dt1$Year, na.rm = TRUE)
 yr_max = max(dt1$Year, na.rm = TRUE)
 
@@ -29,10 +51,6 @@ colnames(boundary_mat) = c("lon", "lat")
 
 boundary = st_sfc(st_polygon(list(boundary_mat)), crs = 4326)
 
-sources = levels(dt1$Source)
-source_colors = c("#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3", "#fdb462",
-                  "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd")
-pal = colorFactor(source_colors, sources)
 
 
 
