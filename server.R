@@ -125,17 +125,20 @@ function(input, output, session) {
     unique(dt1SubSpatial()$Source)
   })
   
-  observe({
-    req(rv$shape)
-    # read required dt2 data (if not previously loaded)
-    for (x in sourcesSpatial()){
-      if (is.null(rv$dt2[[x]])){
-        rv$dt2[[x]] = readRDS(file.path("data", paste0("dt2-", gsub(" ", "", x), ".rds"))) |> 
-          # for now, the app is focused on counts of present species
-          # it reduces the size of the dataset to drop the zero counts
-          filter(Count > 0)
+  observeEvent(rv$shape, {
+    # req(rv$shape)
+    withProgress(message = "Gathering data...", value = 0, {
+      # read required dt2 data (if not previously loaded)
+      for (x in sourcesSpatial()){
+        if (is.null(rv$dt2[[x]])){
+          incProgress(1/length(sourcesSpatial()), detail = x)
+          rv$dt2[[x]] = readRDS(file.path("data", paste0("dt2-", gsub(" ", "", x), ".rds"))) |> 
+            # for now, the app is focused on counts of present species
+            # it reduces the size of the dataset to drop the zero counts
+            filter(Count > 0)
+        }
       }
-    }
+    })
   })
   
   output$sourceMessage <- renderUI({
