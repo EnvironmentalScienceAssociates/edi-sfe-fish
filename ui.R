@@ -1,6 +1,6 @@
 
 page_sidebar(
-  title = "EDI SFE Fish Data",
+  title = "EDI SFE Fish Abundance",
   sidebar = sidebar(
     width = 300,
     pickerInput(inputId = "sources", label = "Data Sources", multiple = TRUE, 
@@ -8,7 +8,11 @@ page_sidebar(
                 options = list(`actions-box` = TRUE, liveSearch = TRUE, size = 5)),
     sliderInput(inputId = "years", label = "Years", min = yr_min, max = yr_max, 
                 value = c(yr_min, yr_max), sep = "", step = 1),
-    actionButton(inputId = "get_species", "Get Species Data")
+    pickerInput(inputId = "group_by", label = "Group by", multiple = TRUE, 
+                choices = c("Source", "Year", "Month", "Date", "Taxa"), 
+                selected = c("Source", "Year", "Taxa")),
+    uiOutput("drawMessage"),
+    actionButton("tally_fish", label = "Tally Fish Abundance", disabled = TRUE)
   ),
   leafletOutput("map")
 )

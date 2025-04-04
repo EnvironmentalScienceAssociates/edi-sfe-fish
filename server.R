@@ -95,23 +95,60 @@ function(input, output, session) {
     }
   })
   
+  rv <- reactiveValues(shape = NULL,
+                       # initialize dt2 with empty list
+                       dt2 = setNames(vector("list", length(sources)), sources),
+                       summ = NULL)
+  
   observeEvent(input$map_draw_new_feature, {
-    shape <- input$map_draw_new_feature
-    cat("Draw event triggered. Layer type:", shape$layerType, "\n")
-    out <<- shape
+    rv$shape = geojsonsf::geojson_sf(jsonify::to_json(input$map_draw_new_feature, unbox = TRUE))
   })
   
-  # initialize with empty list
-  rv <- reactiveValues(dt2 = setNames(vector("list", length(sources)), sources))
-
-  observeEvent(input$get_species,{
+  observeEvent(input$map_draw_edited_features, {
+    rv$shape = geojsonsf::geojson_sf(jsonify::to_json(input$map_draw_edited_features, unbox = TRUE))
+  })
+  
+  observeEvent(input$map_draw_deleted_features, {
+    rv$shape = NULL
+  })
+  
+  output$drawMessage <- renderUI({
+    req(is.null(rv$shape))
+    helpText("Use map drawing tools to select area included in data summary.")
+  })
+  
+  observe({
+    updateActionButton(session, "tally_fish", disabled = is.null(rv$shape))
+  })
+  
+  observeEvent(input$tally_fish,{
+    # read required dt2 data (if not previously loaded)
     rv$dt2 = lapply(input$sources, function(x){
       if (is.null(rv$dt2[[x]])){
-        rv$dt2[[x]] = readRDS(paste0("dt2-", gsub(" ", "", x), ".rds"))
+        rv$dt2[[x]] = readRDS(file.path("data", paste0("dt2-", gsub(" ", "", x), ".rds"))) |> 
+          # for now, the app is focused on counts of present species
+          # it reduces the size of the dataset to drop the zero counts
+          filter(Count > 0)
       }
+    })
+    
+    stations_selected = st_join(stationPoints(), rv$shape, join = st_within) |> 
+      filter(!is.na(feature_type))
+    
+    dt1_sub = dt1[dt1[["SourceStation"]] %in% stations_selected[["SourceStation"]],]
+    
+    dt2_sub = lapply(rv$dt2, function(dfx){
+      dfx |> 
+        filter(SampleID %in% dt1_sub$SampleID) |> 
+        group_by(SampleID, Taxa) |> 
+        summarise(Count = sum(Count, na.rm = TRUE))
     }) |> 
-      setNames(input$sources)
-    test <<- rv$dt2
+      bind_rows()
+    
+    rv$summ = left_join(dt2_sub, select(dt1_sub, SampleID, Source, Year, Month, Date)) |> 
+      group_by(across(all_of(input$group_by))) |> 
+      summarise(Count = sum(Count, na.rm = TRUE))
+    View(rv$summ)
   })
   
 }
