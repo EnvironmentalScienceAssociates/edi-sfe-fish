@@ -214,6 +214,7 @@ function(input, output, session) {
   })
   
   output$table <- DT::renderDataTable({
+    req(rv$summ)
     mutate(table(), Count = round(Count))
   }, rownames = FALSE)
   
