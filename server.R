@@ -103,7 +103,7 @@ function(input, output, session) {
   
   output$messageButton <- renderUI({
     if (is.null(rv$shape)){
-      helpText("Use map drawing tools to select samples included in data summary.")
+      helpText("Use map drawing tools to select samples to include in data summary.")
     } else {
       validate(need(nrow(dt1SubSpatial()) > 0, "No data in selected area"))
       input_task_button("tally_fish", "Tally Fish Abundance")
