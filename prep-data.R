@@ -225,37 +225,36 @@ if (class(dt2$Notes_catch)!="factor") dt2$Notes_catch<- as.factor(dt2$Notes_catc
 dt2$Length <- ifelse((trimws(as.character(dt2$Length))==trimws("NA")),NA,dt2$Length)               
 suppressWarnings(dt2$Length <- ifelse(!is.na(as.numeric("NA")) & (trimws(as.character(dt2$Length))==as.character(as.numeric("NA"))),NA,dt2$Length))
 
-library(dplyr)
-library(lubridate)
-library(egnyter)
-
 if (!dir.exists("data")) dir.create("data")
 
-remote_path = file.path("Shared", "Admin", "Practices", "Fish and Aquatic Science",
-                        "Data Science", "EDI-SFE-Data")
-
 dt1 |> 
-  mutate(Year = year(Date),
-         SourceStation = paste(Source, Station),
-         LatRound = round(Latitude, 1),
-         LonRound = round(Longitude, 1),
-         Month = month(Date)) |> 
+  dplyr::mutate(Year = lubridate::year(Date),
+                Month = lubridate::month(Date),
+                SourceStation = paste(Source, Station),
+                LatRound = round(Latitude, 1),
+                LonRound = round(Longitude, 1)) |> 
   saveRDS(file.path("data", "dt1.rds"))
 
 sources = levels(dt1$Source)
 
 for (i in sources){
-  tmp = filter(dt1, Source == i)
+  tmp = dplyr::filter(dt1, Source == i)
   dt2 |> 
-    filter(SampleID %in% unique(tmp$SampleID)) |> 
+    dplyr::filter(SampleID %in% unique(tmp$SampleID)) |> 
     saveRDS(file.path("data", paste0("dt2-", gsub(" ", "", i), ".rds")))
 }
 
-for (i in list.files("data")){
-  Sys.sleep(0.4)
-  upload_file(file.path("data", i),
-              file.path(remote_path, i), 
-              domain = "https://oneesa.egnyte.com",
-              token = Sys.getenv("EgnyteKey"))
+if (Sys.getenv("EgnyteKey") != ""){
+  remote_path = file.path("Shared", "Admin", "Practices", "Fish and Aquatic Science",
+                          "Data Science", "EDI-SFE-Data")
+  
+  for (i in list.files("data")){
+    Sys.sleep(0.4)
+    # install egnyter with remotes::install_github("thinkelman-esa/egnyter")
+    egnyter::upload_file(file.path("data", i),
+                         file.path(remote_path, i), 
+                         domain = "https://oneesa.egnyte.com",
+                         token = Sys.getenv("EgnyteKey"))
+  }
 }
 
