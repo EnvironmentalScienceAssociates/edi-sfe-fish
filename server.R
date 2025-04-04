@@ -101,6 +101,15 @@ function(input, output, session) {
                        dt2 = setNames(vector("list", length(sources)), sources),
                        summ = NULL)
   
+  output$messageButton <- renderUI({
+    if (is.null(rv$shape)){
+      helpText("Use map drawing tools to select samples included in data summary.")
+    } else {
+      validate(need(nrow(dt1SubSpatial()) > 0, "No data in selected area"))
+      input_task_button("tally_fish", "Tally Fish Abundance")
+    }
+  })
+  
   observeEvent(input$map_draw_new_feature, {
     rv$shape = geojsonsf::geojson_sf(jsonify::to_json(input$map_draw_new_feature, unbox = TRUE))
   })
@@ -143,15 +152,6 @@ function(input, output, session) {
     req(rv$shape)
     HTML(paste("Sources in selected area:<br>",
                paste(sourcesSpatial(), collapse = ", ")))
-  })
-  
-  output$messageButton <- renderUI({
-    if (is.null(rv$shape)){
-      helpText("Use map drawing tools to select area included in data summary.")
-    } else {
-      validate(need(nrow(dt1SubSpatial()) > 0, "No data in selected area"))
-      input_task_button("tally_fish", "Tally Fish Abundance")
-    }
   })
   
   observeEvent(input$tally_fish,{
