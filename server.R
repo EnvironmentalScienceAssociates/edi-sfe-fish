@@ -1,27 +1,27 @@
 
 function(input, output, session) {
   
-  dt1Sub1 <- reactive({
+  dt1SubSource <- reactive({
     dt1[dt1[["Source"]] %in% input$sources,]
   })
   
   observe({
-    dfx = dt1Sub1()
+    dfx = dt1SubSource()
     req(nrow(dfx) > 0)
     freezeReactiveValue(input, "years")
     updateSliderInput(session, "years", value = c(min(dfx$Year, na.rm = TRUE),
                                                   max(dfx$Year, na.rm = TRUE)))
   })
   
-  dt1Sub2 <- reactive({
-    dfx = dt1Sub1()
+  dt1SubYear <- reactive({
+    dfx = dt1SubSource()
     dfx[dfx[["Year"]] >= input$years[1] & dfx[["Year"]] <= input$years[2],]
   })
   
   stations <- reactive({
     # not exactly stations b/c same station label can have many points
-    req(nrow(dt1Sub2()) > 0)
-    dt1Sub2() |> 
+    req(nrow(dt1SubYear()) > 0)
+    dt1SubYear() |> 
       select(Source, Station, SourceStation, LatRound, LonRound, Latitude, Longitude) |> 
       distinct() |> 
       filter(!(is.na(Latitude) | is.na(Longitude)))
@@ -52,6 +52,7 @@ function(input, output, session) {
         targetGroup = "draw",
         singleFeature = TRUE,
         polylineOptions = FALSE,
+        circleOptions = FALSE,
         markerOptions = FALSE,
         circleMarkerOptions = FALSE,
         editOptions = editToolbarOptions(selectedPathOptions = selectedPathOptions())) |> 
@@ -68,7 +69,7 @@ function(input, output, session) {
       clearGroup("stations") |> 
       clearControls()
     
-    if (nrow(dt1Sub2()) > 0){
+    if (nrow(dt1SubYear()) > 0){
       proxy |> 
         addCircleMarkers(data = sourcePoints(), 
                          label = ~ paste("N =", N),
@@ -88,8 +89,8 @@ function(input, output, session) {
                          fillColor = ~pal(Source),
                          fillOpacity = 0.8,
                          group = "stations") |> 
-        groupOptions("sources", zoomLevels = 8:11) |>   
-        groupOptions("stations", zoomLevels = 12:20) |> 
+        groupOptions("sources", zoomLevels = 8:10) |>   
+        groupOptions("stations", zoomLevels = 11:20) |> 
         addLegend("bottomright", pal = pal, values = input$sources, 
                   title = "Data Source", opacity = 1)
     }
@@ -112,18 +113,40 @@ function(input, output, session) {
     rv$shape = NULL
   })
   
-  output$drawMessage <- renderUI({
-    req(is.null(rv$shape))
-    helpText("Use map drawing tools to select area included in data summary.")
+  dt1SubSpatial <- reactive({
+    req(rv$shape)
+    dt1_sub = dt1SubYear()
+    stations_selected = st_join(stationPoints(), rv$shape, join = st_within) |> 
+      filter(!is.na(feature_type))
+    dt1_sub[dt1_sub[["SourceStation"]] %in% stations_selected[["SourceStation"]],]
   })
   
-  observe({
-    updateActionButton(session, "tally_fish", disabled = is.null(rv$shape))
+  sourcesSpatial <- reactive({
+    unique(dt1SubSpatial()$Source)
+  })
+  
+  output$sourceMessage <- renderUI({
+    req(rv$shape)
+    HTML(paste("Sources in selected area:<br>",
+               paste(sourcesSpatial(), collapse = ", ")))
+  })
+  
+  output$messageButton <- renderUI({
+    if (is.null(rv$shape)){
+      helpText("Use map drawing tools to select area included in data summary.")
+    } else {
+      validate(need(nrow(dt1SubSpatial()) > 0, "No data in selected area"))
+      input_task_button("tally_fish", "Tally Fish Abundance")
+    }
   })
   
   observeEvent(input$tally_fish,{
+    req(rv$shape, nrow(dt1SubSpatial()) > 0)
+    dt1_sub = dt1SubSpatial()
+    # print(names(rv$dt2))
     # read required dt2 data (if not previously loaded)
-    rv$dt2 = lapply(input$sources, function(x){
+    rv$dt2 = lapply(sourcesSpatial(), function(x){
+      # print(x)
       if (is.null(rv$dt2[[x]])){
         rv$dt2[[x]] = readRDS(file.path("data", paste0("dt2-", gsub(" ", "", x), ".rds"))) |> 
           # for now, the app is focused on counts of present species
@@ -131,11 +154,6 @@ function(input, output, session) {
           filter(Count > 0)
       }
     })
-    
-    stations_selected = st_join(stationPoints(), rv$shape, join = st_within) |> 
-      filter(!is.na(feature_type))
-    
-    dt1_sub = dt1[dt1[["SourceStation"]] %in% stations_selected[["SourceStation"]],]
     
     dt2_sub = lapply(rv$dt2, function(dfx){
       dfx |> 
@@ -145,10 +163,63 @@ function(input, output, session) {
     }) |> 
       bind_rows()
     
-    rv$summ = left_join(dt2_sub, select(dt1_sub, SampleID, Source, Year, Month, Date)) |> 
+    rv$summ = left_join(dt2_sub, select(dt1_sub, SampleID, Source, Year, Month, Date),
+                        by = join_by(SampleID)) |> 
       group_by(across(all_of(input$group_by))) |> 
       summarise(Count = sum(Count, na.rm = TRUE))
-    View(rv$summ)
+    
+    updateTabsetPanel(session, "nav", selected = "Table")
   })
+  
+  output$taxa <- renderUI({
+    req("Taxa" %in% input$group_by, rv$summ)
+    taxa = sort(unique(rv$summ$Taxa))
+    pickerInput(inputId = "taxa", label = "Taxa", multiple = TRUE,
+                choices = taxa, selected = taxa,
+                options = list(`actions-box` = TRUE, `live-search` = TRUE, size = 10))
+  })
+  
+  output$months <- renderUI({
+    req("Month" %in% input$group_by, rv$summ)
+    m = setNames(1:12, month.abb)
+    pickerInput(inputId = "months", label = "Month", multiple = TRUE, 
+                choices = m, selected = m,
+                options = list(`actions-box` = TRUE, `live-search` = TRUE))
+  })
+  
+  output$dateRange <- renderUI({
+    req("Date" %in% input$group_by, rv$summ)
+    mn = min(rv$summ$Date, na.rm = TRUE)
+    mx = max(rv$summ$Date, na.rm = TRUE)
+    dateRangeInput("date_range", label = "Dates", start = mn, end = mx, min = mn, max = mx)
+  })
+  
+  table <- reactive({
+    req(rv$summ)
+    out = rv$summ
+    if ("Taxa" %in% input$group_by){
+      out = filter(out, Taxa %in% input$taxa)
+    }
+    if ("Month" %in% input$group_by){
+      out = filter(out, Month %in% input$months)
+    }
+    if ("Date" %in% input$group_by){
+      out = filter(out, Date >= input$date_range[1] & Date <= input$date_range[2])
+    }
+    out
+  })
+  
+  output$table <- DT::renderDataTable({
+    mutate(table(), Count = round(Count))
+  }, rownames = FALSE)
+  
+  output$download <- downloadHandler(
+    filename = function() {
+      paste0("EDI-SFE-Fish-Abundance-", round(as.numeric(Sys.time())), ".csv")
+    },
+    content = function(file) {
+      write.csv(table(), file, row.names = FALSE)
+    }
+  )
   
 }
