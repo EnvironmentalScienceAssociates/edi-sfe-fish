@@ -19,7 +19,7 @@ source_colors = c("#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3", "#fdb46
                   "#b3de69", "#fccde5", "#d9d9d9", "#bc80bd")
 pal = colorFactor(source_colors, sources)
 
-data_files = c("dt1.rds", gsub(" ", "", paste0("dt2-", sources, ".rds")))
+data_files = c("dt1.rds", paste0("dt2-", gsub(" ", "", sources), ".rds"))
 
 if (!all(file.exists(file.path("data", data_files)))){
   if (Sys.getenv("EgnyteKey") == ""){
