@@ -125,6 +125,19 @@ function(input, output, session) {
     unique(dt1SubSpatial()$Source)
   })
   
+  observe({
+    req(rv$shape)
+    # read required dt2 data (if not previously loaded)
+    for (x in sourcesSpatial()){
+      if (is.null(rv$dt2[[x]])){
+        rv$dt2[[x]] = readRDS(file.path("data", paste0("dt2-", gsub(" ", "", x), ".rds"))) |> 
+          # for now, the app is focused on counts of present species
+          # it reduces the size of the dataset to drop the zero counts
+          filter(Count > 0)
+      }
+    }
+  })
+  
   output$sourceMessage <- renderUI({
     req(rv$shape)
     HTML(paste("Sources in selected area:<br>",
@@ -143,23 +156,13 @@ function(input, output, session) {
   observeEvent(input$tally_fish,{
     req(rv$shape, nrow(dt1SubSpatial()) > 0)
     dt1_sub = dt1SubSpatial()
-    # print(names(rv$dt2))
-    # read required dt2 data (if not previously loaded)
-    rv$dt2 = lapply(sourcesSpatial(), function(x){
-      # print(x)
-      if (is.null(rv$dt2[[x]])){
-        rv$dt2[[x]] = readRDS(file.path("data", paste0("dt2-", gsub(" ", "", x), ".rds"))) |> 
-          # for now, the app is focused on counts of present species
-          # it reduces the size of the dataset to drop the zero counts
-          filter(Count > 0)
-      }
-    })
-    
     dt2_sub = lapply(rv$dt2, function(dfx){
-      dfx |> 
-        filter(SampleID %in% dt1_sub$SampleID) |> 
-        group_by(SampleID, Taxa) |> 
-        summarise(Count = sum(Count, na.rm = TRUE))
+      if (!is.null(dfx)){
+        dfx |> 
+          filter(SampleID %in% dt1_sub$SampleID) |> 
+          group_by(SampleID, Taxa) |> 
+          summarise(Count = sum(Count, na.rm = TRUE))
+      }
     }) |> 
       bind_rows()
     
