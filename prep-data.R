@@ -238,7 +238,8 @@ dt1 |>
   mutate(Year = year(Date),
          SourceStation = paste(Source, Station),
          LatRound = round(Latitude, 1),
-         LonRound = round(Longitude, 1)) |> 
+         LonRound = round(Longitude, 1),
+         Month = month(Date)) |> 
   saveRDS(file.path("data", "dt1.rds"))
 
 sources = levels(dt1$Source)
