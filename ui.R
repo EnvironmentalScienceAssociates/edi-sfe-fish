@@ -5,11 +5,11 @@ page_sidebar(
     width = 300,
     conditionalPanel(
       condition = 'input.nav == "Map"',
+      sliderInput(inputId = "years", label = "Years", min = yr_min, max = yr_max, 
+                  value = c(yr_min, yr_max), sep = "", step = 1),
       pickerInput(inputId = "sources", label = "Sources", multiple = TRUE, 
                   choices = sources, selected = sources,
                   options = list(`actions-box` = TRUE, `live-search` = TRUE, size = 5)),
-      sliderInput(inputId = "years", label = "Years", min = yr_min, max = yr_max, 
-                  value = c(yr_min, yr_max), sep = "", step = 1),
       pickerInput(inputId = "group_by", label = "Group by", multiple = TRUE, 
                   choices = c("Taxa", "Source", "Year", "Month", "Date"), 
                   selected = c("Taxa", "Source", "Year")),

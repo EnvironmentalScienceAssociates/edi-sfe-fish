@@ -1,27 +1,33 @@
 
 function(input, output, session) {
   
-  dt1SubSource <- reactive({
-    dt1[dt1[["Source"]] %in% input$sources,]
+  rv <- reactiveValues(last_sources = sources, shape = NULL, summ = NULL,
+                       # initialize dt2 with empty list
+                       dt2 = setNames(vector("list", length(sources)), sources))
+  
+  dt1SubYear <- reactive({
+    dt1[dt1[["Year"]] >= input$years[1] & dt1[["Year"]] <= input$years[2],]
   })
   
   observe({
-    dfx = dt1SubSource()
-    req(nrow(dfx) > 0)
-    freezeReactiveValue(input, "years")
-    updateSliderInput(session, "years", value = c(min(dfx$Year, na.rm = TRUE),
-                                                  max(dfx$Year, na.rm = TRUE)))
+    dt1_sub = dt1SubYear()
+    req(nrow(dt1_sub) > 0)
+    freezeReactiveValue(input, "sources")
+    opts = sort(unique(dt1_sub$Source))
+    overlap = rv$last_sources[rv$last_sources %in% opts]
+    rv$last_sources = overlap
+    updatePickerInput(session, "sources", choices = opts, selected = overlap)
   })
   
-  dt1SubYear <- reactive({
-    dfx = dt1SubSource()
-    dfx[dfx[["Year"]] >= input$years[1] & dfx[["Year"]] <= input$years[2],]
+  dt1SubSource <- reactive({
+    dt1_sub = dt1SubYear()
+    dt1_sub[dt1_sub[["Source"]] %in% input$sources,]
   })
   
   stations <- reactive({
     # not exactly stations b/c same station label can have many points
-    req(nrow(dt1SubYear()) > 0)
-    dt1SubYear() |> 
+    req(nrow(dt1SubSource()) > 0)
+    dt1SubSource() |> 
       select(Source, Station, SourceStation, LatRound, LonRound, Latitude, Longitude) |> 
       distinct() |> 
       filter(!(is.na(Latitude) | is.na(Longitude)))
@@ -65,11 +71,20 @@ function(input, output, session) {
   
   observe({
     proxy |> 
+      clearControls() |> 
+      addLegend("bottomright", pal = pal, values = input$sources, 
+                title = "Data Source", opacity = 1)
+  })
+  
+  observe({
+    dt1_sub = dt1SubSource()
+    
+    proxy |> 
       clearGroup("sources") |> 
       clearGroup("stations") |> 
       clearControls()
     
-    if (nrow(dt1SubYear()) > 0){
+    if (nrow(dt1_sub) > 0){
       proxy |> 
         addCircleMarkers(data = sourcePoints(), 
                          label = ~ paste("N =", N),
@@ -89,17 +104,12 @@ function(input, output, session) {
                          fillColor = ~pal(Source),
                          fillOpacity = 0.8,
                          group = "stations") |> 
-        groupOptions("sources", zoomLevels = 8:10) |>   
         groupOptions("stations", zoomLevels = 11:20) |> 
-        addLegend("bottomright", pal = pal, values = input$sources, 
+        groupOptions("sources", zoomLevels = 5:10)  |> 
+        addLegend("bottomright", pal = pal, values = unique(dt1_sub$Source), 
                   title = "Data Source", opacity = 1)
     }
   })
-  
-  rv <- reactiveValues(shape = NULL,
-                       # initialize dt2 with empty list
-                       dt2 = setNames(vector("list", length(sources)), sources),
-                       summ = NULL)
   
   output$messageButton <- renderUI({
     if (is.null(rv$shape)){
@@ -124,7 +134,7 @@ function(input, output, session) {
   
   dt1SubSpatial <- reactive({
     req(rv$shape)
-    dt1_sub = dt1SubYear()
+    dt1_sub = dt1SubSource()
     stations_selected = st_join(stationPoints(), rv$shape, join = st_within) |> 
       filter(!is.na(feature_type))
     dt1_sub[dt1_sub[["SourceStation"]] %in% stations_selected[["SourceStation"]],]
