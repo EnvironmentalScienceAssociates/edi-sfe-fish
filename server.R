@@ -193,9 +193,8 @@ function(input, output, session) {
   
   output$months <- renderUI({
     req("Month" %in% input$group_by, rv$summ)
-    m = setNames(1:12, month.abb)
     pickerInput(inputId = "months", label = "Month", multiple = TRUE, 
-                choices = m, selected = m,
+                choices = 1:12, selected = 1:12,
                 options = list(`actions-box` = TRUE, `live-search` = TRUE))
   })
   
