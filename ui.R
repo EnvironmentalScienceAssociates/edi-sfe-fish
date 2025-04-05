@@ -8,7 +8,7 @@ page_sidebar(
       sliderInput(inputId = "years", label = "Years", min = yr_min, max = yr_max, 
                   value = c(yr_min, yr_max), sep = "", step = 1),
       pickerInput(inputId = "sources", label = "Sources", multiple = TRUE, 
-                  choices = sources, selected = sources,
+                  choices = sources, selected = sources_sel,
                   options = list(`actions-box` = TRUE, `live-search` = TRUE, size = 5)),
       pickerInput(inputId = "group_by", label = "Group by", multiple = TRUE, 
                   choices = c("Taxa", "Source", "Year", "Month", "Date"), 

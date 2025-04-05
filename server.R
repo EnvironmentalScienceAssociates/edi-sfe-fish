@@ -1,7 +1,7 @@
 
 function(input, output, session) {
   
-  rv <- reactiveValues(last_sources = sources, shape = NULL, summ = NULL,
+  rv <- reactiveValues(last_sources = sources_sel, shape = NULL, summ = NULL,
                        # initialize dt2 with empty list
                        dt2 = setNames(vector("list", length(sources)), sources))
   
@@ -77,24 +77,13 @@ function(input, output, session) {
   })
   
   observe({
-    dt1_sub = dt1SubSource()
-    
     proxy |> 
       clearGroup("sources") |> 
       clearGroup("stations") |> 
       clearControls()
     
-    if (nrow(dt1_sub) > 0){
+    if (nrow(sourcePoints()) > 0){
       proxy |> 
-        addCircleMarkers(data = sourcePoints(), 
-                         label = ~ paste("N =", N),
-                         radius = 6,
-                         color = "black",
-                         weight = 1,
-                         opacity = 1,
-                         fillColor = ~pal(Source),
-                         fillOpacity = 0.8,
-                         group = "sources") |> 
         addCircleMarkers(data = stationPoints(), 
                          label = ~Station, 
                          radius = 4,
@@ -105,8 +94,17 @@ function(input, output, session) {
                          fillOpacity = 0.8,
                          group = "stations") |> 
         groupOptions("stations", zoomLevels = 11:20) |> 
-        groupOptions("sources", zoomLevels = 5:10)  |> 
-        addLegend("bottomright", pal = pal, values = unique(dt1_sub$Source), 
+        addCircleMarkers(data = sourcePoints(), 
+                         label = ~ paste("N =", N),
+                         radius = 6,
+                         color = "black",
+                         weight = 1,
+                         opacity = 1,
+                         fillColor = ~pal(Source),
+                         fillOpacity = 0.8,
+                         group = "sources") |> 
+        groupOptions("sources", zoomLevels = 7:10)  |> 
+        addLegend("bottomright", pal = pal, values = unique(dt1SubSource()$Source), 
                   title = "Data Source", opacity = 1)
     }
   })
