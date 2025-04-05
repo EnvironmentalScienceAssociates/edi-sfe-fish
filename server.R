@@ -202,13 +202,17 @@ function(input, output, session) {
     req(rv$summ)
     out = rv$summ
     if ("Taxa" %in% input$group_by){
-      out = filter(out, Taxa %in% input$taxa)
+      req(input$taxa)
+      out = out[out[["Taxa"]] %in% input$taxa, ]
     }
     if ("Month" %in% input$group_by){
-      out = filter(out, Month %in% input$months)
+      req(input$months)
+      out = out[out[["Month"]] %in% input$months, ]
     }
     if ("Date" %in% input$group_by){
-      out = filter(out, Date >= input$date_range[1] & Date <= input$date_range[2])
+      req(input$date_range)
+      out = out[out[["Date"]] >= input$date_range[1] & 
+                  out[["Date"]] <= input$date_range[2], ]
     }
     out
   })
